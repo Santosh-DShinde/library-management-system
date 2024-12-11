@@ -15,7 +15,7 @@ DATABASES = {
         "HOST": "127.0.0.1",
         "PORT": "3306",
         "USER": "root",
-        "PASSWORD": "password",
+        "PASSWORD": "S3cure#Passw0rd!",
     }
 }
 CLIENT_ID = "P4Q4ZFCTLn6tBgC0byExMuiETHce5PIKkZEGjGxD"
