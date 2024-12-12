@@ -24,9 +24,15 @@ urlpatterns += [
 
 from .views.books import BooksView
 urlpatterns += [
+    url(r'^books/(?P<id>.+)/$', BooksView.as_view({'get': 'retrieve', 'put':'update'})),
     url(r'^books/$', BooksView.as_view({'get':'list','post':'create'}))
 ]
         
+from .views.borrow_requests import BorrowRequestsView
+urlpatterns += [
+    url(r'^borrow-request/(?P<id>.+)/$', BorrowRequestsView.as_view({'get': 'retrieve', 'put':'update'})),
+    url(r'^borrow-request/$', BorrowRequestsView.as_view({'get':'list','post':'create'}))
+]
 
 # from .views.student import StudentView
 
