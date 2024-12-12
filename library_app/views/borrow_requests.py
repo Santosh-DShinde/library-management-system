@@ -13,14 +13,14 @@ from functools import reduce
 from simple_search import search_filter
 
 
-from ..models import Books
+from ..models import Books, BorrowRequests
 
 from ..serializers.books_serializer import BooksSerializer
 
-class BooksView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiResponse):
+class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiResponse):
     # authentication_classes = [OAuth2Authentication]
     # permission_classes = [IsAuthenticated]
-    model_class = Books.objects
+    model_class = BorrowRequests.objects
     serializer_class = BooksSerializer
 
     def retrieve(self, request, *args, **kwargs):
@@ -37,20 +37,23 @@ class BooksView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiRespo
             
         except Exception as e:
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
-            
+
     @transaction.atomic()
     def create(self, request, *args, **kwrgs):
         try:
             sp1 = transaction.savepoint()
             req_data = request.data.copy()
-            title = req_data.get('title')
-            author = req_data.get('author')
+            book_id = req_data.get('book')
+            user_id = req_data.get('user')
+            start_date = req_data.get('start_date')
+            end_date = req_data.get('end_date')
+            status = req_data.get('status')
 
-            if not title or not author:
-                return ApiResponse.response_bad_request(self, message="Book title and Author are mandetory.")
+            if not user_id or not book_id:
+                return ApiResponse.response_bad_request(self, message="Book Id and User Id are mandetory.")
 
-            if check_is_exists := self.model_class.filter(title = title, author=author).first():
-                return ApiResponse.response_bad_request(self, message="Book is already exists with Author.")
+            if check_is_exists := self.model_class.filter(book_id = book_id, user_id=user_id).first():
+                return ApiResponse.response_bad_request(self, message="Book request is already exists with Provided User.")
             
             serializer = self.serializer_class(data=req_data)
 
@@ -152,7 +155,7 @@ class BooksView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiRespo
                 return ApiResponse.response_bad_request(self, message="Books details not present.")
             
             instance.delete()
-
+            
         except Exception as e:
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
     

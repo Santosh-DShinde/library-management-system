@@ -21,6 +21,11 @@ urlpatterns += [
     url(r'^users/$', ImpersonateView.as_view({'post':'create',})),
     
 ]
+
+from .views.books import BooksView
+urlpatterns += [
+    url(r'^books/$', BooksView.as_view({'get':'list','post':'create'}))
+]
         
 
 # from .views.student import StudentView

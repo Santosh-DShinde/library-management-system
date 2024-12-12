@@ -24,7 +24,7 @@ class CustomUserManager(UserManager):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_active', True)
         extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('mobile', username)
+        extra_fields.setdefault('username', username)
         # group, created = Group.objects.get_or_create(name='super_admin')
         # extra_fields.setdefault('group_id', group.id)
         if extra_fields.get('is_staff') is not True:
