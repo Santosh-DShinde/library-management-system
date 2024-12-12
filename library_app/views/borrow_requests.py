@@ -29,7 +29,7 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
             instance = self.model_class.filter(id = get_id).first()
 
             if not instance:
-                return ApiResponse.response_bad_request(self, message="Books details not present.")
+                return ApiResponse.response_bad_request(self, message="Borrow request details not present.")
             
             resp_dict = self.transform_single(instance)
             
@@ -53,7 +53,7 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
                 return ApiResponse.response_bad_request(self, message="Book Id and User Id are mandetory.")
 
             if check_is_exists := self.model_class.filter(book_id = book_id, user_id=user_id).first():
-                return ApiResponse.response_bad_request(self, message="Book request is already exists with Provided User.")
+                return ApiResponse.response_bad_request(self, message="Borrow request is already exists with Provided User.")
             
             serializer = self.serializer_class(data=req_data)
 
@@ -63,7 +63,7 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
                 return ApiResponse.response_bad_request(self, message=serializer_error)
             
             serializer.save()
-            return ApiResponse.response_created(self, message="Books details stored successfully.")
+            return ApiResponse.response_created(self, message="Borrow request stored successfully.")
 
         except Exception as e:
             print("tracenback", traceback.format_exc())
@@ -81,10 +81,10 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
             instance = self.model_class.get(id = get_id)
 
             if not instance:
-                return ApiResponse.response_not_found(self, message="Books details not found.")
+                return ApiResponse.response_not_found(self, message="Borrow request not found.")
 
             if check_is_exists := self.model_class.filter(title = title, author=author).exclude().exists():
-                return ApiResponse.response_bad_request(self, message="Book is already exists with Author.")
+                return ApiResponse.response_bad_request(self, message="Borrow request is already exists with Author.")
 
             serializer = self.serializer_class(instance, data=req_data, partial = True)
 
@@ -93,7 +93,7 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
                 transaction.savepoint_rollback(sp1)
                 return ApiResponse.response_bad_request(self, message=serializer_error)
             
-            return ApiResponse.response_ok(self, message="Books details updated successfully.")
+            return ApiResponse.response_ok(self, message="Borrow request updated successfully.")
 
         except Exception as e:
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
@@ -119,13 +119,13 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
             if start_date and end_date:
                 end_date = datetime.strptime(end_date, "%Y-%m-%d")
                 end_date = datetime.combine(end_date, datetime.max.time())
-                obj_list.append(["created_at__range", [start_date, end_date]])
+                obj_list.append(["start_date__range", [start_date, end_date]])
 
             elif start_date:
-                obj_list.append(["created_at__gte", start_date])
+                obj_list.append(["start_date__gte", start_date])
     
             elif end_date:
-                obj_list.append(["created_at__lte", end_date])
+                obj_list.append(["start_date__lte", end_date])
             
             q_list = [Q(x) for x in obj_list]
 
@@ -152,7 +152,7 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
             instance = self.model_class.filter(id = get_id).first()
 
             if not instance:
-                return ApiResponse.response_bad_request(self, message="Books details not present.")
+                return ApiResponse.response_bad_request(self, message="Borrow request not present.")
             
             instance.delete()
             
