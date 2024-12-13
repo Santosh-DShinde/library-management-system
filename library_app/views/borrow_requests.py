@@ -1,5 +1,6 @@
 import operator
 import traceback
+from library_management.throttles import LoginAPIThrottle
 from utility.utils import generate_token, get_login_response, get_serielizer_error, get_pagination_resp, transform_list
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 from rest_framework.permissions import IsAuthenticated
@@ -21,6 +22,7 @@ from ..serializers.borrow_requests_serializer import BorrowRequestsSerializer
 class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiResponse):
     # authentication_classes = [OAuth2Authentication]
     # permission_classes = [IsAuthenticated]
+    throttle_classes = [LoginAPIThrottle]
     model_class = BorrowRequests.objects
     serializer_class = BorrowRequestsSerializer
 
