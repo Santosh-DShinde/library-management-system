@@ -1,7 +1,7 @@
 import operator
 import traceback
 from library_management.throttles import LightRateLimit
-from utility.utils import generate_token, get_field_type, get_login_response, get_serielizer_error, get_pagination_resp, transform_list
+from utility.utils import  get_field_type, get_serielizer_error, get_pagination_resp, transform_list
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 from rest_framework.permissions import IsAuthenticated
 from ..serializers.login_serializer import LoginSerializer
@@ -182,10 +182,8 @@ class BooksView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiRespo
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
     
     def transform_single(self, instance):
-        resp_dict = dict()
-        if instance:
-            resp_dict['id'] = instance.id
-            resp_dict['title'] = instance.title
-            resp_dict['author'] = instance.author
-                
-        return resp_dict
+        return {
+            "id": instance.id,
+            "title": instance.title,
+            "author": instance.author
+        }
