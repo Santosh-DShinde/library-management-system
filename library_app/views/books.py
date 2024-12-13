@@ -45,12 +45,16 @@ class BooksView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiRespo
             req_data = request.data.copy()
             title = req_data.get('title')
             author = req_data.get('author')
+            isbn = req_data.get('isbn')
 
             if not title or not author:
                 return ApiResponse.response_bad_request(self, message="Book title and Author are mandetory.")
 
             if check_is_exists := self.model_class.filter(title = title, author=author).first():
                 return ApiResponse.response_bad_request(self, message="Book is already exists with Author.")
+            
+            if check_isbn_exists := self.model_class.filter(isbn = isbn).exists():
+                return ApiResponse.response_bad_request(self, message="Book is already exists with given ISBN number.")
             
             serializer = self.serializer_class(data=req_data)
 
@@ -73,6 +77,7 @@ class BooksView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiRespo
             req_data = request.data.copy()
             title = req_data.get('title')
             author = req_data.get('author')
+            isbn = req_data.get('isbn')
             get_id = self.kwargs.get('id')
 
             instance = self.model_class.get(id = get_id)
@@ -80,8 +85,11 @@ class BooksView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiRespo
             if not instance:
                 return ApiResponse.response_not_found(self, message="Books details not found.")
 
-            if check_is_exists := self.model_class.filter(title = title, author=author).exclude().exists():
+            if check_is_exists := self.model_class.filter(title = title, author=author).exclude(id = instance.id).exists():
                 return ApiResponse.response_bad_request(self, message="Book is already exists with Author.")
+            
+            if check_isbn_exists := self.model_class.filter(isbn = isbn).exclude(id = instance.id).exists():
+                return ApiResponse.response_bad_request(self, message="Book is already exists with given ISBN number.")
 
             serializer = self.serializer_class(instance, data=req_data, partial = True)
 
@@ -110,6 +118,12 @@ class BooksView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiRespo
             
             if where_array.get('author'):
                 obj_list.append(('author',where_array.get('author')))
+            
+            if where_array.get('isbn'):
+                obj_list.append(('isbn',where_array.get('isbn')))
+            
+            if where_array.get('copies_available'):
+                obj_list.append(('copies_available',where_array.get('copies_available')))
 
             start_date = where_array.get("start_date")
             end_date = where_array.get("end_date")

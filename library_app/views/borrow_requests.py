@@ -11,17 +11,18 @@ from datetime import datetime
 from django.db.models import Q
 from functools import reduce
 from simple_search import search_filter
+from utility.constants import STATUS_PENDING ,STATUS_APPROVED, STATUS_DECLINED
 
 
 from ..models import Books, BorrowRequests
 
-from ..serializers.books_serializer import BooksSerializer
+from ..serializers.borrow_requests_serializer import BorrowRequestsSerializer
 
 class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiResponse):
     # authentication_classes = [OAuth2Authentication]
     # permission_classes = [IsAuthenticated]
     model_class = BorrowRequests.objects
-    serializer_class = BooksSerializer
+    serializer_class = BorrowRequestsSerializer
 
     def retrieve(self, request, *args, **kwargs):
         try:
@@ -45,6 +46,7 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
             req_data = request.data.copy()
             book_id = req_data.get('book')
             user_id = req_data.get('user')
+            # user_id = request.user.id
             start_date = req_data.get('start_date')
             end_date = req_data.get('end_date')
             status = req_data.get('status')
@@ -52,8 +54,15 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
             if not user_id or not book_id:
                 return ApiResponse.response_bad_request(self, message="Book Id and User Id are mandetory.")
 
-            if check_is_exists := self.model_class.filter(book_id = book_id, user_id=user_id).first():
-                return ApiResponse.response_bad_request(self, message="Borrow request is already exists with Provided User.")
+            # total_books = Books.objects.filter(id = book_id).count()
+            # available_books = self.model_class.filter(book_id = book_id).count()
+
+            # if available_books == total_books
+            if check_is_exists := self.model_class.filter(Q(book_id = book_id), Q(Q(user_id=user_id) | ~Q(user_id=user_id)), 
+                                                            Q(start_date__gte = start_date), Q(start_date__lte = end_date), 
+                                                            Q(status__in = [STATUS_APPROVED, STATUS_PENDING])
+                                                            ).first():
+                return ApiResponse.response_bad_request(self, message="Borrow request is already exists with Provided User details.")
             
             serializer = self.serializer_class(data=req_data)
 
@@ -74,17 +83,27 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
         try:
             sp1 = transaction.savepoint()
             req_data = request.data.copy()
-            title = req_data.get('title')
-            author = req_data.get('author')
+            book_id = req_data.get('book')
+            user_id = req_data.get('user')
+            # user_id = request.user.id
+            start_date = req_data.get('start_date')
+            end_date = req_data.get('end_date')
+            status = req_data.get('status')
             get_id = self.kwargs.get('id')
+
+            if not request.user.is_librarian:
+                req_data.pop('status')
 
             instance = self.model_class.get(id = get_id)
 
             if not instance:
                 return ApiResponse.response_not_found(self, message="Borrow request not found.")
 
-            if check_is_exists := self.model_class.filter(title = title, author=author).exclude().exists():
-                return ApiResponse.response_bad_request(self, message="Borrow request is already exists with Author.")
+            if check_is_exists := self.model_class.filter(Q(book_id = book_id), Q(Q(user_id=user_id) | ~Q(user_id=user_id)), 
+                                                            Q(start_date__gte = start_date), Q(start_date__lte = end_date), 
+                                                            Q(status__in = [STATUS_APPROVED, STATUS_PENDING])
+                                                            ).exclude(id=instance.id).exists():
+                return ApiResponse.response_bad_request(self, message="Borrow request is already exists with User.")
 
             serializer = self.serializer_class(instance, data=req_data, partial = True)
 
@@ -108,11 +127,18 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
 
             obj_list = []
 
-            if where_array.get('title'):
-                obj_list.append(('title',where_array.get('title')))
+            if where_array.get('user_id'):
+                obj_list.append(('user_id',where_array.get('user_id')))
             
-            if where_array.get('author'):
-                obj_list.append(('author',where_array.get('author')))
+            if where_array.get('book_id'):
+                obj_list.append(('book_id',where_array.get('book_id')))
+
+            if where_array.get('status'):
+                status = int(where_array.get('status'))
+                if status in [STATUS_APPROVED, STATUS_DECLINED, STATUS_DECLINED]:
+                    obj_list.append(("status", status))
+                else:
+                    return ApiResponse.response_bad_request(self, message="Invalid status.")
 
             start_date = where_array.get("start_date")
             end_date = where_array.get("end_date")
@@ -163,7 +189,17 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
         resp_dict = dict()
         if instance:
             resp_dict['id'] = instance.id
-            resp_dict['title'] = instance.title
-            resp_dict['author'] = instance.author
+            if instance.book_id:
+                resp_dict["book_id"] = instance.book_id
+                resp_dict["title"] = instance.book.title
+                resp_dict["author"] = instance.book.author
+            if instance.user_id:
+                resp_dict["user_id"] = instance.user_id
+                resp_dict["user_name"] = f"{instance.user.first_name} {instance.user.last_name}"
+                
+            resp_dict["start_date"] = instance.start_date
+            resp_dict["end_date"] = instance.end_date
+            resp_dict["status"] = instance.get_status_display()
+            resp_dict["status_name"] = instance.status
                 
         return resp_dict
