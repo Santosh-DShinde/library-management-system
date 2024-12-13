@@ -10,6 +10,7 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework import mixins
 from django.conf import settings
 # from stark_utilities.utilities import *
+import requests
 
 """ mixins to handle request url """
 class CreateRetrieveUpdateViewSet(
