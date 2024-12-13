@@ -1,4 +1,3 @@
-import traceback
 from rest_framework.generics import GenericAPIView
 from django.db.models import Q
 from utility.utils import generate_token, get_login_response
@@ -20,37 +19,34 @@ class LoginViewSet(GenericAPIView, ApiResponse, EmailOrUsernameModelBackend):
 
     @swagger_auto_schema
     def post(self, request, *args, **kwargs):
+        """
+        API to get logged In.
+        """
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        if not username or not password:
+            return ApiResponse.response_bad_request(self, message=MESSAGES['username_password_required'])
+
+        """ authenticate user and generate token """
+        
         try:
-            """
-            API to get logged In.
-            """
-            email = request.data.get("email")
-            password = request.data.get("password")
+            user = User.objects.get(Q(Q(username=username) | Q(email=username)))
+            if not user.check_password(password):
+                return ApiResponse.response_unauthorized(self, message=MESSAGES['invalid_username_and_password'])
 
-            if not email or not password:
-                return ApiResponse.response_bad_request(self, message= "Email and Password are required.")
+        except User.DoesNotExist as e:
+            return ApiResponse.response_unauthorized(self, message=MESSAGES['username_not_exist'])
 
-            """ authenticate user and generate token """
-            
-            try:
-                user = User.objects.get(Q(email=email))
-                if not user.check_password(password):
-                    return ApiResponse.response_unauthorized(self, message=MESSAGES['invalid_username_and_password'])
-
-            except User.DoesNotExist as e:
-                return ApiResponse.response_unauthorized(self, message=MESSAGES['username_not_exist'])
-
-            if user.status == STATUS_INACTIVE:
-                return ApiResponse.response_bad_request(self, message=MESSAGES['user_inactive'])
-            
-            if user.status != STATUS_ACTIVE:
-                return ApiResponse.response_bad_request(self, message=MESSAGES['user_deleted'])
-            """
-            Authorize to user
-            """
-            token = generate_token(request, user)
-            resp_dict = get_login_response(user, token)
-            resp_dict["token"] = token  
-            return ApiResponse.response_ok(self, data=resp_dict, message="Login successful")
-        except Exception as e:
-            print("==", traceback.format_exc())
+        if user.status == STATUS_INACTIVE:
+            return ApiResponse.response_bad_request(self, message=MESSAGES['user_inactive'])
+        
+        if user.status != STATUS_ACTIVE:
+            return ApiResponse.response_bad_request(self, message=MESSAGES['user_deleted'])
+        """
+        Authorize to user
+        """
+        token = generate_token(request, user)
+        resp_dict = get_login_response(user, token)
+        resp_dict["token"] = token  
+        return ApiResponse.response_ok(self, data=resp_dict, message="Login successful")
