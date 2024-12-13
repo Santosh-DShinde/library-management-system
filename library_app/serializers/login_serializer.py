@@ -7,4 +7,12 @@ class LoginSerializer(serializers.ModelSerializer):
         fields = [
             "username",
             "email",
+           "first_name", 
+           "last_name", 
+           "mobile", 
+           "status", 
+           "role", 
+           "is_librarian", 
+           "is_active", 
+           "is_staff"
         ]

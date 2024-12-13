@@ -183,4 +183,35 @@ def create_or_update_serializer(
     return None, get_serielizer_error(serializer)
 
 
+import openpyxl
+from openpyxl.styles import Font
+
+def create_excel_file(data, file_name="output.xlsx"):
+    
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+
+    headers = ["ID", "Book ID", "Title", "Author", "User ID", "User Name", "Start Date", "End Date", "Status", "Status Name"]
+    sheet.append(headers)
+
+    for cell in sheet[1]:
+        cell.font = Font(bold=True)
+
+    for item in data:
+        sheet.append([
+            item.id,
+            item.book_id,
+            item.book.title,
+            item.book.author,
+            item.user_id,
+            item.user.first_name,
+            item.start_date,
+            item.end_date,
+            item.status,
+            # item.status_name,
+        ])
+
+    workbook.save(file_name)
+    # print(f"Excel file '{file_name}' created successfully!")
+    return file_name
 

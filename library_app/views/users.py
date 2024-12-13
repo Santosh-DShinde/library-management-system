@@ -9,8 +9,8 @@ from utility.response import ApiResponse
 
 
 class ImpersonateView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiResponse):
-    # permission_classes = [IsAuthenticated, ]
-    # authentication_classes = [OAuth2Authentication, ]
+    permission_classes = [IsAuthenticated, ]
+    authentication_classes = [OAuth2Authentication, ]
     serializer_class = LoginSerializer
     singular_name = "Login"
     model_class = User.objects

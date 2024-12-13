@@ -31,7 +31,9 @@ urlpatterns += [
 from .views.borrow_requests import BorrowRequestsView
 urlpatterns += [
     url(r'^borrow-request/(?P<id>.+)/$', BorrowRequestsView.as_view({'get': 'retrieve', 'put':'update'})),
-    url(r'^borrow-request/$', BorrowRequestsView.as_view({'get':'list','post':'create'}))
+    url(r'^borrow-request/$', BorrowRequestsView.as_view({'get':'list','post':'create'})),
+    url(r'^get-borrow-history/$', BorrowRequestsView.as_view({'get':'get_borrow_history',})),
+
 ]
 
 # from .views.student import StudentView

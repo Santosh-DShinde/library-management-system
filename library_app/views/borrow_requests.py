@@ -1,6 +1,7 @@
 import operator
 import traceback
-from utility.utils import generate_token, get_login_response, get_serielizer_error, get_pagination_resp, transform_list
+from library_management.permissions import is_librarian_and_is_book_user
+from utility.utils import get_serielizer_error, get_pagination_resp, transform_list, create_excel_file
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 from rest_framework.permissions import IsAuthenticated
 from ..serializers.login_serializer import LoginSerializer
@@ -11,7 +12,7 @@ from datetime import datetime
 from django.db.models import Q
 from functools import reduce
 from simple_search import search_filter
-from utility.constants import STATUS_PENDING ,STATUS_APPROVED, STATUS_DECLINED
+from utility.constants import STATUS_PENDING ,STATUS_APPROVED, STATUS_DECLINED, BOOK_USER
 
 
 from ..models import Books, BorrowRequests
@@ -19,11 +20,12 @@ from ..models import Books, BorrowRequests
 from ..serializers.borrow_requests_serializer import BorrowRequestsSerializer
 
 class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiResponse):
-    # authentication_classes = [OAuth2Authentication]
-    # permission_classes = [IsAuthenticated]
+    authentication_classes = [OAuth2Authentication]
+    permission_classes = [IsAuthenticated]
     model_class = BorrowRequests.objects
     serializer_class = BorrowRequestsSerializer
 
+    @is_librarian_and_is_book_user
     def retrieve(self, request, *args, **kwargs):
         try:
             get_id = self.kwargs.get('id')
@@ -39,6 +41,7 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
         except Exception as e:
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
 
+    @is_librarian_and_is_book_user
     @transaction.atomic()
     def create(self, request, *args, **kwrgs):
         try:
@@ -54,15 +57,11 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
             if not user_id or not book_id:
                 return ApiResponse.response_bad_request(self, message="Book Id and User Id are mandetory.")
 
-            # total_books = Books.objects.filter(id = book_id).count()
-            # available_books = self.model_class.filter(book_id = book_id).count()
-
-            # if available_books == total_books
             if check_is_exists := self.model_class.filter(Q(book_id = book_id), Q(Q(user_id=user_id) | ~Q(user_id=user_id)), 
                                                             Q(start_date__gte = start_date), Q(start_date__lte = end_date), 
                                                             Q(status__in = [STATUS_APPROVED, STATUS_PENDING])
                                                             ).first():
-                return ApiResponse.response_bad_request(self, message="Borrow request is already exists with Provided User details.")
+                return ApiResponse.response_bad_request(self, message="Borrow request is already exists with User details.")
             
             serializer = self.serializer_class(data=req_data)
 
@@ -78,6 +77,7 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
             print("tracenback", traceback.format_exc())
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
     
+    @is_librarian_and_is_book_user
     @transaction.atomic()
     def update(self, request, *args, **kwrgs):
         try:
@@ -91,19 +91,20 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
             status = req_data.get('status')
             get_id = self.kwargs.get('id')
 
-            if not request.user.is_librarian:
+            if request.user.role_id == BOOK_USER:
                 req_data.pop('status')
 
             instance = self.model_class.get(id = get_id)
 
             if not instance:
                 return ApiResponse.response_not_found(self, message="Borrow request not found.")
-
-            if check_is_exists := self.model_class.filter(Q(book_id = book_id), Q(Q(user_id=user_id) | ~Q(user_id=user_id)), 
-                                                            Q(start_date__gte = start_date), Q(start_date__lte = end_date), 
-                                                            Q(status__in = [STATUS_APPROVED, STATUS_PENDING])
-                                                            ).exclude(id=instance.id).exists():
-                return ApiResponse.response_bad_request(self, message="Borrow request is already exists with User.")
+            
+            if request.user.role_id == BOOK_USER:
+                if check_is_exists := self.model_class.filter(Q(book_id = book_id), Q(Q(user_id=user_id) | ~Q(user_id=user_id)), 
+                                                                Q(start_date__gte = start_date), Q(start_date__lte = end_date), 
+                                                                Q(status__in = [STATUS_APPROVED, STATUS_PENDING])
+                                                                ).exclude(id=instance.id).exists():
+                    return ApiResponse.response_bad_request(self, message="Borrow request is already exists with User.")
 
             serializer = self.serializer_class(instance, data=req_data, partial = True)
 
@@ -112,11 +113,13 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
                 transaction.savepoint_rollback(sp1)
                 return ApiResponse.response_bad_request(self, message=serializer_error)
             
+            serializer.save()
             return ApiResponse.response_ok(self, message="Borrow request updated successfully.")
 
         except Exception as e:
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
     
+    @is_librarian_and_is_book_user
     def list(self, request, *args, **kwrgs):
         try:
             where_array = request.query_params
@@ -172,6 +175,66 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
         except Exception as e:
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
     
+    @is_librarian_and_is_book_user
+    def get_borrow_history(self, request, *args, **kwrgs):
+        try:
+            where_array = request.query_params
+            is_download_file = where_array.get('is_download_file')
+            
+            sort_by = where_array.get('sort_by') if where_array.get('sort_by') else "id"
+            sort_direction = where_array.get('sort_direction') if where_array.get('sort_direction') else "ascending"
+            if sort_direction == "descending":
+                sort_by = "-" + sort_by
+            
+            obj_list = []
+            obj_list.append(("status", STATUS_APPROVED))
+
+            print("request.user.id", request.user.id)
+            if where_array.get('user_id'):
+                obj_list.append(('user_id',where_array.get('user_id')))
+            else:
+                obj_list.append(('user_id',request.user.id))                
+
+            start_date = where_array.get("start_date")
+            end_date = where_array.get("end_date")
+            if start_date and end_date:
+                end_date = datetime.strptime(end_date, "%Y-%m-%d")
+                end_date = datetime.combine(end_date, datetime.max.time())
+                obj_list.append(["start_date__range", [start_date, end_date]])
+
+            elif start_date:
+                obj_list.append(["start_date__gte", start_date])
+    
+            elif end_date:
+                obj_list.append(["start_date__lte", end_date])
+            
+            q_list = [Q(x) for x in obj_list]
+
+            if q_list:
+                queryset = self.model_class.filter(reduce(operator.and_, q_list)).order_by(sort_by)
+            else:
+                queryset = self.model_class.order_by(sort_by)
+            
+            """Search for keyword"""
+            if where_array.get("keyword"):
+                queryset = queryset.filter(search_filter(self.search_fields, where_array.get("keyword")))
+
+            if is_download_file:
+                if queryset:
+                    file_name = create_excel_file(list(queryset))
+                    return ApiResponse.response_ok(self, data={"file_name":file_name}, message="File generated successfully.")
+                else:
+                    return ApiResponse.response_bad_request(self, message="No data present.")
+
+            else:
+                resp_data = get_pagination_resp(queryset, request)
+                response_data = transform_list(self, resp_data.get('data'))
+                return ApiResponse.response_ok(self, data=response_data, paginator=resp_data.get("paginator"))
+        except Exception as e:
+            print("traceback", traceback.format_exc())
+            return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
+
+    @is_librarian_and_is_book_user
     def delete(self, request, *args, **kwrgs):
         try:
             get_id = self.kwargs.get('id')
@@ -203,3 +266,4 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
             resp_dict["status_name"] = instance.status
                 
         return resp_dict
+
