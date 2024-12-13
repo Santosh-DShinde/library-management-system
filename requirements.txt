@@ -34,8 +34,6 @@ mysqlclient==1.4.2.post1
 six==1.16.0
 sqlparse==0.4.3
 typing-extensions==3.10.0.0
-stark-utilities==0.0.5
-stark-rest-apiresponse==0.0.4
 uritemplate==4.1.1
 urllib3==1.26.15
 wrapt==1.15.0

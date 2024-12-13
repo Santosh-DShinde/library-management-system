@@ -1,4 +1,3 @@
-from stark_utilities.utilities import *
 from datetime import datetime , timedelta
 from oauth2_provider.models import AccessToken, Application, RefreshToken
 from oauth2_provider.settings import oauth2_settings
@@ -7,6 +6,9 @@ from oauthlib.oauth2.rfc6749.tokens import random_token_generator
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404
 from django.db import transaction
+from rest_framework.viewsets import GenericViewSet
+from rest_framework import mixins
+from django.conf import settings
 
 
 """ mixins to handle request url """
