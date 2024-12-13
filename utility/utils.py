@@ -9,7 +9,7 @@ from django.db import transaction
 from rest_framework.viewsets import GenericViewSet
 from rest_framework import mixins
 from django.conf import settings
-
+# from stark_utilities.utilities import *
 
 """ mixins to handle request url """
 class CreateRetrieveUpdateViewSet(
@@ -21,6 +21,38 @@ class CreateRetrieveUpdateViewSet(
 ):
     pass
 
+
+def revoke_oauth_token(request):
+    """ revoke token """
+    try:
+        client_id = settings.CLIENT_ID
+    except:
+        raise Exception('Add CLIENT_ID in settings.')
+
+    try:
+        client_secret = settings.CLIENT_SECRET
+    except:
+        raise Exception('Add CLIENT_SECRET in settings.')
+    
+    try:
+        SERVER_PROTOCOLS = settings.SERVER_PROTOCOLS
+    except:
+        raise Exception('Add SERVER_PROTOCOLS in settings.')
+
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    payload = {
+        "token": request.META["HTTP_AUTHORIZATION"][7:],
+        "token_type_hint": "access_token",
+        "client_id": client_id,
+        "client_secret": client_secret,
+    }
+
+    # host request
+    host = request.get_host()
+    response = requests.post(
+        SERVER_PROTOCOLS + host + "/o/revoke_token/", data=payload, headers=headers
+    )
+    return response
 
 class MultipleFieldPKModelMixin(object):
     """
