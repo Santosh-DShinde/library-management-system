@@ -182,5 +182,13 @@ def create_or_update_serializer(
 
     return None, get_serielizer_error(serializer)
 
+def get_field_type(model, field):
+    try:
+        field_type = None
+        field = model._meta.get_field(field)
+        if field in model._meta.fields:
+            field_type = type(field).__name__
 
-
+        return field_type
+    except Exception:
+        return None
