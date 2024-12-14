@@ -7,6 +7,7 @@ from utility.utils import MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet
 from utility.utils import revoke_oauth_token
 from utility.response import ApiResponse
 
+from ..swagger.users_swagger import swagger_auto_schema_post, swagger_auto_schema
 
 class ImpersonateView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiResponse):
     permission_classes = [IsAuthenticated, ]
@@ -51,7 +52,7 @@ class ImpersonateView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, Ap
         except Exception as e:
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
 
-
+    @swagger_auto_schema_post
     def create(self, request, *args, **kwargs):
         try:
             req_data = request.data.copy()
@@ -76,8 +77,8 @@ class ImpersonateView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, Ap
             user_instance = serializer.save()
             user_instance.set_password(password)
             user_instance.save()
-
-            return ApiResponse.response_created(self, message="User created successfully.")
+            
+            return ApiResponse.response_created(self, data=req_data, message="User created successfully.")
             
         except Exception as e:
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])

@@ -13,20 +13,22 @@ from django.db.models import Q
 from functools import reduce
 from simple_search import search_filter
 from django.db.models.functions import Lower
-
+from ..swagger.books_swagger import *
+from utility.permissions import *
 
 from ..models import Books
 
 from ..serializers.books_serializer import BooksSerializer
 
 class BooksView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiResponse):
-    # authentication_classes = [OAuth2Authentication]
-    # permission_classes = [IsAuthenticated]
+    authentication_classes = [OAuth2Authentication]
+    permission_classes = [IsAuthenticated]
     throttle_classes = [LightRateLimit]
     model_class = Books.objects
     serializer_class = BooksSerializer
     search_fields = ['title', 'author', 'isbn']
 
+    @swagger_auto_schema
     def retrieve(self, request, *args, **kwargs):
         try:
             get_id = self.kwargs.get('id')
@@ -41,7 +43,9 @@ class BooksView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiRespo
             
         except Exception as e:
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
-            
+    
+    @swagger_auto_schema_post
+    @is_librarian
     @transaction.atomic()
     def create(self, request, *args, **kwrgs):
         try:
@@ -68,12 +72,14 @@ class BooksView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiRespo
                 return ApiResponse.response_bad_request(self, message=serializer_error)
             
             serializer.save()
-            return ApiResponse.response_created(self, message="Books details stored successfully.")
+            return ApiResponse.response_created(self, data=req_data, message="Books details stored successfully.")
 
         except Exception as e:
             print("tracenback", traceback.format_exc())
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
     
+    @swagger_auto_schema_update
+    @is_librarian
     @transaction.atomic()
     def update(self, request, *args, **kwrgs):
         try:
@@ -108,6 +114,7 @@ class BooksView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiRespo
         except Exception as e:
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
     
+    @swagger_auto_schema_list
     def list(self, request, *args, **kwrgs):
         try:
             where_array: dict = request.query_params
@@ -168,6 +175,8 @@ class BooksView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiRespo
             print("ERR : ", traceback.format_exc())
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
     
+    @swagger_auto_schema_delete
+    @is_librarian
     def delete(self, request, *args, **kwrgs):
         try:
             get_id = self.kwargs.get('id')
