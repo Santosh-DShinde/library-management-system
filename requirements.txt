@@ -40,3 +40,4 @@ wrapt==1.15.0
 django-nose==1.4.7
 Faker==4.0.1
 coverage==7.2.6
+python-dotenv==1.0.0
