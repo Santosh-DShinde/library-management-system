@@ -1,5 +1,6 @@
 import operator
 import traceback
+from library_management.throttles import LightRateLimit
 from library_management.permissions import is_librarian_and_is_book_user
 from utility.utils import get_serielizer_error, get_pagination_resp, transform_list, create_excel_file
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
@@ -13,7 +14,7 @@ from django.db.models import Q
 from functools import reduce
 from simple_search import search_filter
 from utility.constants import STATUS_PENDING ,STATUS_APPROVED, STATUS_DECLINED, BOOK_USER
-
+from ..swagger.borrow_request_swagger import *
 
 from ..models import Books, BorrowRequests
 
@@ -22,9 +23,11 @@ from ..serializers.borrow_requests_serializer import BorrowRequestsSerializer
 class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet, ApiResponse):
     authentication_classes = [OAuth2Authentication]
     permission_classes = [IsAuthenticated]
+    throttle_classes = [LightRateLimit]
     model_class = BorrowRequests.objects
     serializer_class = BorrowRequestsSerializer
 
+    @swagger_auto_schema
     @is_librarian_and_is_book_user
     def retrieve(self, request, *args, **kwargs):
         try:
@@ -41,6 +44,7 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
         except Exception as e:
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
 
+    @swagger_auto_schema_post
     @is_librarian_and_is_book_user
     @transaction.atomic()
     def create(self, request, *args, **kwrgs):
@@ -48,8 +52,8 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
             sp1 = transaction.savepoint()
             req_data = request.data.copy()
             book_id = req_data.get('book')
-            user_id = req_data.get('user')
-            # user_id = request.user.id
+            # user_id = req_data.get('user')
+            user_id = request.user.id
             start_date = req_data.get('start_date')
             end_date = req_data.get('end_date')
             status = req_data.get('status')
@@ -71,12 +75,13 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
                 return ApiResponse.response_bad_request(self, message=serializer_error)
             
             serializer.save()
-            return ApiResponse.response_created(self, message="Borrow request stored successfully.")
+            return ApiResponse.response_created(self, data=req_data, message="Borrow request stored successfully.")
 
         except Exception as e:
             print("tracenback", traceback.format_exc())
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
     
+    @swagger_auto_schema_update
     @is_librarian_and_is_book_user
     @transaction.atomic()
     def update(self, request, *args, **kwrgs):
@@ -114,11 +119,12 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
                 return ApiResponse.response_bad_request(self, message=serializer_error)
             
             serializer.save()
-            return ApiResponse.response_ok(self, message="Borrow request updated successfully.")
+            return ApiResponse.response_ok(self, data=req_data, message="Borrow request updated successfully.")
 
         except Exception as e:
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
     
+    @swagger_auto_schema_list
     @is_librarian_and_is_book_user
     def list(self, request, *args, **kwrgs):
         try:
@@ -234,6 +240,7 @@ class BorrowRequestsView(MultipleFieldPKModelMixin, CreateRetrieveUpdateViewSet,
             print("traceback", traceback.format_exc())
             return ApiResponse.response_internal_server_error(self, message=[str(e.args[0])])
 
+    @swagger_auto_schema_delete
     @is_librarian_and_is_book_user
     def delete(self, request, *args, **kwrgs):
         try:

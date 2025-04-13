@@ -196,12 +196,12 @@ def get_field_type(model, field):
 import openpyxl
 from openpyxl.styles import Font
 
-def create_excel_file(data, file_name="output.xlsx"):
+def create_excel_file(data, file_name="borrow_history.xlsx"):
     
     workbook = openpyxl.Workbook()
     sheet = workbook.active
 
-    headers = ["ID", "Book ID", "Title", "Author", "User ID", "User Name", "Start Date", "End Date", "Status", "Status Name"]
+    headers = ["SR.NO", "Book ID", "Title", "Author", "User Name", "Start Date", "End Date", "Status"]
     sheet.append(headers)
 
     for cell in sheet[1]:
@@ -210,17 +210,17 @@ def create_excel_file(data, file_name="output.xlsx"):
     for item in data:
         sheet.append([
             item.id,
-            item.book_id,
+            item.book.isbn,
             item.book.title,
             item.book.author,
-            item.user_id,
             item.user.first_name,
             item.start_date,
             item.end_date,
-            item.status,
+            item.get_status_display(),
             # item.status_name,
         ])
-
+    # print("sheet", sheet)
+    file_name = f"media/{file_name}"
     workbook.save(file_name)
     # print(f"Excel file '{file_name}' created successfully!")
     return file_name
