@@ -1,16 +1,25 @@
-from datetime import datetime , timedelta
-from oauth2_provider.models import AccessToken, Application, RefreshToken
-from oauth2_provider.settings import oauth2_settings
-from django.core.mail import send_mail, EmailMessage
+# Standard Library
+from datetime import datetime, timedelta
+import openpyxl
+from openpyxl.styles import Font
+
+# Third-party
+import requests
 from oauthlib.oauth2.rfc6749.tokens import random_token_generator
-from django.core.paginator import Paginator
-from django.shortcuts import get_object_or_404
-from django.db import transaction
 from rest_framework.viewsets import GenericViewSet
 from rest_framework import mixins
+
+# Django
 from django.conf import settings
-# from stark_utilities.utilities import *
-import requests
+from django.core.mail import EmailMessage
+from django.core.paginator import Paginator
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+
+# Django OAuth Toolkit
+from oauth2_provider.models import AccessToken, Application, RefreshToken
+from oauth2_provider.settings import oauth2_settings
+
 
 """ mixins to handle request url """
 class CreateRetrieveUpdateViewSet(
@@ -21,6 +30,22 @@ class CreateRetrieveUpdateViewSet(
     mixins.UpdateModelMixin,
 ):
     pass
+
+class MultipleFieldPKModelMixin(object):
+    """
+    Class to override the default behaviour for .get_object for models which have retrieval on fields
+    other  than primary keys.
+    """
+
+    lookup_field = []
+    lookup_url_kwarg = []
+
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+        get_args = {field: self.kwargs[field] for field in self.lookup_field if field in self.kwargs}
+
+        get_args.update({"pk": self.kwargs[field] for field in self.lookup_url_kwarg if field in self.kwargs})
+        return get_object_or_404(queryset, **get_args)
 
 
 def revoke_oauth_token(request):
@@ -55,25 +80,7 @@ def revoke_oauth_token(request):
     )
     return response
 
-class MultipleFieldPKModelMixin(object):
-    """
-    Class to override the default behaviour for .get_object for models which have retrieval on fields
-    other  than primary keys.
-    """
-
-    lookup_field = []
-    lookup_url_kwarg = []
-
-    def get_object(self):
-        queryset = self.filter_queryset(self.get_queryset())
-        get_args = {field: self.kwargs[field] for field in self.lookup_field if field in self.kwargs}
-
-        get_args.update({"pk": self.kwargs[field] for field in self.lookup_url_kwarg if field in self.kwargs})
-        return get_object_or_404(queryset, **get_args)
-
-
-
-""" demo login response """
+""" login response """
 def get_login_response(user=None, token=None):
     resp_dict = dict()
     resp_dict["id"] = user.id
@@ -82,16 +89,7 @@ def get_login_response(user=None, token=None):
     resp_dict["email"] = user.email
     resp_dict["mobile"] = user.mobile
     resp_dict["username"] = user.username
-    # resp_dict["group"] = user.group_id
     return resp_dict
-
-def send_common_email(subject, message, email_to, from_emails):
-    try:
-        msg = EmailMessage(subject, message, to=[email_to], from_email=from_emails)
-        msg.content_subtype = "html"
-        msg.send()
-    except:
-        pass
 
 def generate_token(request, user):
     expire_seconds = oauth2_settings.user_settings["ACCESS_TOKEN_EXPIRE_SECONDS"]
@@ -120,6 +118,14 @@ def generate_token(request, user):
         "scope": scopes,
     }
     return token
+
+def send_common_email(subject, message, email_to, from_emails):
+    try:
+        msg = EmailMessage(subject, message, to=[email_to], from_email=from_emails)
+        msg.content_subtype = "html"
+        msg.send()
+    except:
+        pass
 
 def get_pagination_resp(data, request):
     page_response = {"total_count": None, "total_pages": None,
@@ -162,12 +168,8 @@ def get_serielizer_error(serializer, with_key=False):
         msg_list = ["Invalid format"]
     return msg_list
 
-
 def create_or_update_serializer(
-    serializer_class,
-    data,
-    savepoint=None,
-    instance=None
+    serializer_class, data, savepoint=None, instance=None
 ):
     if instance:
         serializer = serializer_class(instance, data=data, partial=True)
@@ -193,35 +195,33 @@ def get_field_type(model, field):
     except Exception:
         return None
 
-import openpyxl
-from openpyxl.styles import Font
-
 def create_excel_file(data, file_name="borrow_history.xlsx"):
-    
-    workbook = openpyxl.Workbook()
-    sheet = workbook.active
+    try:
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        headers = ["SR.NO", "Book ID", "Title", "Author", "User Name", "Start Date", "End Date", "Status"]
+        sheet.append(headers)
 
-    headers = ["SR.NO", "Book ID", "Title", "Author", "User Name", "Start Date", "End Date", "Status"]
-    sheet.append(headers)
+        for cell in sheet[1]:
+            cell.font = Font(bold=True)
 
-    for cell in sheet[1]:
-        cell.font = Font(bold=True)
+        for item in data:
+            sheet.append([
+                item.id,
+                item.book.isbn,
+                item.book.title,
+                item.book.author,
+                item.user.first_name,
+                item.start_date,
+                item.end_date,
+                item.get_status_display(),
+                # item.status_name,
+            ])
+        # print("sheet", sheet)
+        file_name = f"media/{file_name}"
+        workbook.save(file_name)
+        # print(f"Excel file '{file_name}' created successfully!")
+        return file_name
 
-    for item in data:
-        sheet.append([
-            item.id,
-            item.book.isbn,
-            item.book.title,
-            item.book.author,
-            item.user.first_name,
-            item.start_date,
-            item.end_date,
-            item.get_status_display(),
-            # item.status_name,
-        ])
-    # print("sheet", sheet)
-    file_name = f"media/{file_name}"
-    workbook.save(file_name)
-    # print(f"Excel file '{file_name}' created successfully!")
-    return file_name
-
+    except Exception as e:
+        return None
