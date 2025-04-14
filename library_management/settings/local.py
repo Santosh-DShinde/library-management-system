@@ -54,13 +54,3 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR + "/media/"
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
-
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
-    }
-}
-# Number of seconds to lock a user out after exceeding MAX_LOGIN_ATTEMPTS (5 minutes)
-LOGIN_ATTEMPT_TIMEOUT = 300
-MAX_LOGIN_ATTEMPTS = 5
