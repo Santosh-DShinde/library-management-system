@@ -175,3 +175,14 @@ PAGE_SIZE = 10
 # ]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}
+# Number of seconds to lock a user out after exceeding MAX_LOGIN_ATTEMPTS (5 minutes)
+LOGIN_ATTEMPT_TIMEOUT = 300
+MAX_LOGIN_ATTEMPTS = 5
+BLACKLIST_TOKEN_TIMEOUT = 3600

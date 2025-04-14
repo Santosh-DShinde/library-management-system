@@ -47,7 +47,6 @@ class MultipleFieldPKModelMixin(object):
         get_args.update({"pk": self.kwargs[field] for field in self.lookup_url_kwarg if field in self.kwargs})
         return get_object_or_404(queryset, **get_args)
 
-
 def revoke_oauth_token(request):
     """ revoke token """
     try:
@@ -75,9 +74,12 @@ def revoke_oauth_token(request):
 
     # host request
     host = request.get_host()
+    print("URL : ", SERVER_PROTOCOLS + host + "/o/revoke_token/")
+    print("payload : ", payload)
     response = requests.post(
         SERVER_PROTOCOLS + host + "/o/revoke_token/", data=payload, headers=headers
     )
+    print("response : ", response)
     return response
 
 """ login response """
